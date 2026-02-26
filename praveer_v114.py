@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# 🚀 PROJECT: PRAVEER.OWNS (V114 8-AGENT ANCHOR)
-# 📅 STATUS: 8-AGENTS-ACTIVE | RELOAD-PROOF | MULTI-THREADED
+# 🚀 PROJECT: PRAVEER.OWNS (V115 TRIPLE-ANCHOR)
+# 📅 STATUS: 3-MSG-BURST | 8-AGENTS-TOTAL | ANTI-RELOAD
 
-import os, time, random, sys, tempfile, shutil, threading
+import os, time, random, sys, threading, tempfile, shutil
 from concurrent.futures import ThreadPoolExecutor
 from selenium import webdriver
 from selenium_stealth import stealth
@@ -10,18 +10,17 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-# --- ⚡ 8-AGENT CONFIG ---
+# --- ⚡ SPEED CONFIG ---
 THREADS_PER_MACHINE = 4            
-INTERNAL_DELAY_MS = 60             # Adjusted for 8-agent socket safety
+INTERNAL_DELAY_MS = 150            # Delay between Triple-Taps
 SESSION_RESTART_SEC = 900          
 TOTAL_DURATION = 21000
 
-BROWSER_LOCK = threading.Lock()
+BROWSER_LAUNCH_LOCK = threading.Lock()
 
 def get_driver(agent_id, machine_id):
-    with BROWSER_LOCK:
-        # Staggered launch to prevent CPU spike
-        time.sleep(agent_id * 4)
+    with BROWSER_LAUNCH_LOCK:
+        time.sleep(agent_id * 5) # Staggered entry for account safety
         chrome_options = Options()
         chrome_options.page_load_strategy = 'eager'
         chrome_options.add_argument("--headless=new") 
@@ -29,7 +28,7 @@ def get_driver(agent_id, machine_id):
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         
-        # 🛡️ STABILITY: Block Images/CSS to stop the flickering
+        # 🛡️ STABILITY: Block images/CSS to stop the flickering
         prefs = {"profile.managed_default_content_settings.images": 2, "profile.managed_default_content_settings.stylesheets": 2}
         chrome_options.add_experimental_option("prefs", prefs)
         
@@ -38,8 +37,8 @@ def get_driver(agent_id, machine_id):
         stealth(driver, languages=["en-US"], vendor="Google Inc.", platform="Win32", fix_hairline=True)
         return driver
 
-def start_anchor_worker(driver, text, delay):
-    """JS Worker that stays glued to the chat box even during reloads."""
+def triple_anchor_dispatch(driver, text, delay):
+    """Fires 3 unique messages and locks onto the box during reloads."""
     driver.execute_script("""
         window.praveer_active = true;
         (async function blitz(msg, ms) {
@@ -48,10 +47,13 @@ def start_anchor_worker(driver, text, delay):
                 const box = findBox();
                 if (box) {
                     box.focus();
-                    const salt = Math.random().toString(36).substring(7);
-                    document.execCommand('insertText', false, msg + " \\u200B" + salt);
-                    const e = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true});
-                    box.dispatchEvent(e);
+                    // Triple-Strike Loop
+                    for(let i=0; i<3; i++) {
+                        const salt = Math.random().toString(36).substring(7);
+                        document.execCommand('insertText', false, msg + " \\u200B" + salt);
+                        const e = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true});
+                        box.dispatchEvent(e);
+                    }
                 }
                 await new Promise(r => setTimeout(r, ms));
             }
@@ -62,30 +64,30 @@ def run_agent(agent_id, machine_id, cookie, target, text):
     try:
         driver = get_driver(agent_id, machine_id)
         driver.get("https://www.instagram.com/")
-        time.sleep(5)
+        time.sleep(4)
         driver.add_cookie({'name': 'sessionid', 'value': cookie, 'path': '/', 'domain': '.instagram.com'})
         driver.get(f"https://www.instagram.com/direct/t/{target}/")
         
-        # Wait for socket to stabilize
+        # Handshake wait
         time.sleep(15)
-        print(f"🔥 [M{machine_id}-A{agent_id}] Anchor Engaged.")
-        start_anchor_worker(driver, text, INTERNAL_DELAY_MS)
+        print(f"🔥 [M{machine_id}-A{agent_id}] Triple-Anchor Active.")
+        triple_anchor_dispatch(driver, text, INTERNAL_DELAY_MS)
         
         time.sleep(SESSION_RESTART_SEC)
         driver.quit()
     except Exception as e:
-        print(f"⚠️ [M{machine_id}-A{agent_id}] Error: {e}")
+        print(f"⚠️ Error: {e}")
 
 def main():
     cookie = os.environ.get("INSTA_COOKIE", "").strip()
     target = os.environ.get("TARGET_THREAD_ID", "").strip()
-    text = os.environ.get("MESSAGES", "V114 OWNED").strip()
+    text = os.environ.get("MESSAGES", "V115 OWNED").strip()
     machine_id = os.environ.get("MACHINE_ID", "1")
     
     with ThreadPoolExecutor(max_workers=THREADS_PER_MACHINE) as executor:
         for i in range(THREADS_PER_MACHINE):
             executor.submit(run_agent, i+1, machine_id, cookie, target, text)
-            time.sleep(10) # Handshake staggering
+            time.sleep(10)
 
 if __name__ == "__main__":
     main()
