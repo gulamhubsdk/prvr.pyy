@@ -1,87 +1,97 @@
 # -*- coding: utf-8 -*-
-# 🚀 PROJECT: PRAVEER.OWNS (V119 VORTEX-RESET)
-# 📅 STATUS: 16-AGENTS-TOTAL | RAM-SHIELD-ACTIVE | VORTEX-DISPLACEMENT
+# 🚀 PROJECT: PRAVEER.OWNS (V109 TRIPLE-TAP)
+# 📅 STATUS: TRIPLE-STRIKE-ACTIVE | 4-AGENTS PER MACHINE | ENTROPY-SHIELD
 
-import os, time, random, sys, threading, tempfile, shutil
+import os, time, re, random, datetime, threading, sys, gc, tempfile, subprocess, shutil
 from concurrent.futures import ThreadPoolExecutor
 from selenium import webdriver
 from selenium_stealth import stealth
+from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 
-# --- ⚡ VORTEX-RESET CONFIG ---
-THREADS_PER_MACHINE = 4            
-INTERNAL_DELAY_MS = 30             # 🔥 Faster: 33 msgs/sec per agent
-SESSION_RESTART_SEC = 600          # 🛡️ 10-Minute Reset (Prevents Exit 143)
-TOTAL_DURATION = 21000
+# --- ⚡ TRIPLE-TAP CONFIG ---
+THREADS = 4                        
+TOTAL_DURATION = 21600             
+# 🔥 STRIKE SPEED: 0.2-0.5s pause between TRIPLE-TAPS (Total 10+ msgs/sec per agent)
+BURST_SPEED = (0.2, 0.5)           
+SESSION_RESTART_SEC = 300          
+
+GLOBAL_SENT = 0
+COUNTER_LOCK = threading.Lock()
+BROWSER_LAUNCH_LOCK = threading.Lock()
 
 def get_driver(agent_id, machine_id):
     chrome_options = Options()
-    chrome_options.page_load_strategy = 'eager'
     chrome_options.add_argument("--headless=new") 
     chrome_options.add_argument("--no-sandbox") 
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
-    # 🔥 CRITICAL: Limits memory usage per browser
-    chrome_options.add_argument("--js-flags='--max-old-space-size=512'")
+    chrome_options.add_argument("--window-size=1920,1080")
     
-    prefs = {"profile.managed_default_content_settings.images": 2, "profile.managed_default_content_settings.stylesheets": 2}
-    chrome_options.add_experimental_option("prefs", prefs)
+    ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/12{random.randint(1,4)}.0.0.0 Safari/537.36"
+    chrome_options.add_argument(f"user-agent={ua}")
     
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    temp_dir = os.path.join(tempfile.gettempdir(), f"pv_v109_{machine_id}_{agent_id}")
+    chrome_options.add_argument(f"--user-data-dir={temp_dir}")
+    driver = webdriver.Chrome(options=chrome_options)
     stealth(driver, languages=["en-US"], vendor="Google Inc.", platform="Win32", fix_hairline=True)
+    driver.custom_temp_path = temp_dir
     return driver
 
-def vortex_dispatch(driver, text, delay):
-    driver.execute_script("""
-        window.praveer_active = true;
-        window.msg_count = 0;
-        (async function vortex(msg, ms) {
-            const findBox = () => document.querySelector('div[role="textbox"], textarea, [contenteditable="true"]');
-            const filler = "\\u3164\\u2060\\u034F";
-            const wall = (filler + "\\n").repeat(30); 
+def triple_tap_dispatch(driver, text):
+    """Fires 3 unique messages in a single JS execution cycle."""
+    try:
+        # We pass 3 unique 'Entropy' strings to the JS worker
+        entropy = [f"{random.randint(100,999)}", f"{random.randint(100,999)}", f"{random.randint(100,999)}"]
+        
+        driver.execute_script("""
+            var box = document.querySelector('div[role="textbox"], textarea');
+            var msg = arguments[0];
+            var salts = arguments[1];
             
-            while(window.praveer_active) {
-                const box = findBox();
-                if (box) {
+            if (box) {
+                salts.forEach(salt => {
                     box.focus();
-                    // Alternate Text and Vertical Wall to break opponent's UI
-                    let payload = (window.msg_count % 2 === 0) ? msg : wall;
-                    const salt = Math.random().toString(36).substring(5);
-                    document.execCommand('insertText', false, payload + " \\u200B" + salt);
-                    const e = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true});
+                    // Inject text + invisible bit for safety
+                    document.execCommand('insertText', false, msg + " \\u200B" + salt);
+                    
+                    var e = new KeyboardEvent('keydown', {
+                        key: 'Enter', code: 'Enter', keyCode: 13, which: 13, 
+                        bubbles: true, cancelable: true
+                    });
                     box.dispatchEvent(e);
-                    window.msg_count++;
-                }
-                await new Promise(r => setTimeout(r, ms));
+                });
             }
-        })(arguments[0], arguments[1]);
-    """, text, delay)
+        """, text, entropy)
+        return True
+    except: return False
 
-def run_agent(agent_id, machine_id, cookie, target, text):
-    start_time = time.time()
-    while (time.time() - start_time) < TOTAL_DURATION:
+def run_life_cycle(agent_id, machine_id, cookie, target, custom_text):
+    global_start = time.time()
+    while (time.time() - global_start) < TOTAL_DURATION:
         driver = None
         try:
             driver = get_driver(agent_id, machine_id)
             driver.get("https://www.instagram.com/")
-            time.sleep(4)
-            driver.add_cookie({'name': 'sessionid', 'value': cookie, 'path': '/', 'domain': '.instagram.com'})
+            
+            # 🛡️ SAFETY STAGGER: Wait before injecting cookie
+            login_delay = (int(agent_id) * 8) + (int(machine_id) * 15) - 20
+            time.sleep(max(5, login_delay))
+            
+            driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'path': '/', 'domain': '.instagram.com'})
             driver.get(f"https://www.instagram.com/direct/t/{target}/")
-            time.sleep(12)
+            time.sleep(12) # Full handshake
             
-            vortex_dispatch(driver, text, INTERNAL_DELAY_MS)
-            
-            # --- 💓 Heartbeat & Auto-Reset ---
-            cycle_start = time.time()
-            while (time.time() - cycle_start) < SESSION_RESTART_SEC:
-                time.sleep(30)
-                try:
-                    cnt = driver.execute_script("return window.msg_count;")
-                    print(f"💓 [M{machine_id}-A{agent_id}] Count: {cnt} | RAM Protected")
-                except: break
+            session_start = time.time()
+            while (time.time() - session_start) < SESSION_RESTART_SEC:
+                if triple_tap_dispatch(driver, custom_text):
+                    with COUNTER_LOCK:
+                        global GLOBAL_SENT
+                        GLOBAL_SENT += 3 # Count 3 per strike
+                    sys.stdout.write("🚀")
+                    sys.stdout.flush()
+                
+                time.sleep(random.uniform(*BURST_SPEED))
         except: pass
         finally:
             if driver: driver.quit()
@@ -90,13 +100,12 @@ def run_agent(agent_id, machine_id, cookie, target, text):
 def main():
     cookie = os.environ.get("INSTA_COOKIE", "").strip()
     target = os.environ.get("TARGET_THREAD_ID", "").strip()
-    text = os.environ.get("MESSAGES", "OWNED").strip()
+    custom_text = os.environ.get("MESSAGES", "V109 TRIPLE").strip()
     machine_id = os.environ.get("MACHINE_ID", "1")
     
-    with ThreadPoolExecutor(max_workers=THREADS_PER_MACHINE) as executor:
-        for i in range(THREADS_PER_MACHINE):
-            executor.submit(run_agent, i+1, machine_id, cookie, target, text)
-            time.sleep(10)
+    with ThreadPoolExecutor(max_workers=THREADS) as executor:
+        for i in range(THREADS):
+            executor.submit(run_life_cycle, i+1, machine_id, cookie, target, custom_text)
 
 if __name__ == "__main__":
     main()
