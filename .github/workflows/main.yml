@@ -1,19 +1,27 @@
-name: PRAVEER.OWNS 8-AGENT BLITZ V114
+name: PRAVEER.OWNS VORTEX V119
 on:
   schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+    - cron: '0 */6 * * *' # Auto-runs every 6 hours
+  workflow_dispatch: # Allows manual start
 
 jobs:
   flood:
     runs-on: ubuntu-latest
+    # 🛡️ Prevents the 143/Terminated error by allowing a long run time
+    timeout-minutes: 350 
     strategy:
       matrix:
-        machine: [1, 2] # 2 Machines x 4 Agents = 8 Agents Total
+        # 4 Machines x 4 Agents = 16 Agents Total
+        machine: [1, 2, 3, 4] 
     
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
       - name: Install Dependencies
         run: |
@@ -21,10 +29,11 @@ jobs:
           sudo apt-get install -y google-chrome-stable
           pip install selenium selenium-stealth webdriver-manager
 
-      - name: Run 8-Agent Blitz
+      - name: Run Vortex-Reset Agent
         env:
           INSTA_COOKIE: ${{ secrets.INSTA_COOKIE }}
           TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
           MESSAGES: ${{ secrets.MESSAGES }}
           MACHINE_ID: ${{ matrix.machine }}
-        run: python -u praveer_v114.py
+        # -u is mandatory to see the Heartbeat logs in real-time
+        run: python -u praveer_v119.py
