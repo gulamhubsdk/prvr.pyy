@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# 🚀 PROJECT: PRAVEER.OWNS (V111 EAGER-BLITZ)
-# 📅 STATUS: ZERO-WAIT-ACTIVE | DUAL-MACHINE | FIXED-CRASH
+# 🚀 PROJECT: PRAVEER.OWNS (V112 SAFE-BLITZ)
+# 📅 STATUS: BYPASS-ACTIVE | STAGGERED-START | RESOURCE-LEAN
 
 import os, time, re, random, datetime, threading, sys, gc, tempfile, subprocess, shutil
 from selenium import webdriver
@@ -10,15 +10,14 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 # --- ⚡ GLOBAL CONSTANTS ---
-TOTAL_DURATION = 21000             # 5.8 Hours
-INTERNAL_DELAY_MS = 30             # 🔥 33 msgs/sec per machine (66 total)
-SESSION_RESTART_SEC = 1200         # 20-minute stable cycles
+TOTAL_DURATION = 21000             
+INTERNAL_DELAY_MS = 45             # 🛡️ Safe threshold for GitHub stability
+SESSION_RESTART_SEC = 900          
 
 def get_master_driver(machine_id):
-    """Initializes the browser with Eager strategy and Image Blocking."""
     chrome_options = Options()
     
-    # 🏎️ EAGER LOADING: Fired as soon as basic HTML is ready
+    # 🏎️ EAGER LOADING: Start acting before the full page renders
     chrome_options.page_load_strategy = 'eager' 
     
     chrome_options.add_argument("--headless=new") 
@@ -26,11 +25,13 @@ def get_master_driver(machine_id):
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     
-    # 🛡️ SPEED: Block images to save 90% bandwidth & CPU
-    prefs = {"profile.managed_default_content_settings.images": 2}
+    # 🛡️ RESOURCE SHIELD: Block Images (2) and Stylesheets (2) to prevent CPU spikes
+    prefs = {
+        "profile.managed_default_content_settings.images": 2,
+        "profile.managed_default_content_settings.stylesheets": 2
+    }
     chrome_options.add_experimental_option("prefs", prefs)
     
-    # Auto-manages the Driver Version for GitHub environment
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
     
@@ -38,7 +39,7 @@ def get_master_driver(machine_id):
     return driver
 
 def start_turbo_worker(driver, text, delay):
-    """Fires messages via internal JS loop to bypass Selenium lag."""
+    """Fires messages via internal JS loop for zero-lag dispatch."""
     driver.execute_script("""
         window.praveer_active = true;
         (async function blitz(msg, ms) {
@@ -48,7 +49,6 @@ def start_turbo_worker(driver, text, delay):
                 if (box) {
                     box.focus();
                     const salt = Math.random().toString(36).substring(7);
-                    // Entropy injection + Custom Secret Text
                     document.execCommand('insertText', false, msg + " \\u200B" + salt);
                     
                     const e = new KeyboardEvent('keydown', {
@@ -57,7 +57,6 @@ def start_turbo_worker(driver, text, delay):
                     });
                     box.dispatchEvent(e);
                 }
-                // High-precision wait
                 await new Promise(r => setTimeout(r, ms));
             }
         })(arguments[0], arguments[1]);
@@ -66,33 +65,35 @@ def start_turbo_worker(driver, text, delay):
 def main():
     cookie = os.environ.get("INSTA_COOKIE", "").strip()
     target = os.environ.get("TARGET_THREAD_ID", "").strip()
-    custom_text = os.environ.get("MESSAGES", "V111 OWNED").strip()
+    custom_text = os.environ.get("MESSAGES", "V112 OWNED").strip()
     machine_id = os.environ.get("MACHINE_ID", "1")
     
     if not cookie or not target:
-        print("❌ CRITICAL ERROR: Missing Secrets.")
+        print("❌ CRITICAL: Missing Secrets.")
         return
 
     global_start = time.time()
     while (time.time() - global_start) < TOTAL_DURATION:
         driver = None
         try:
-            print(f"🚀 [M{machine_id}] INITIALIZING BLITZ...")
+            print(f"🚀 [M{machine_id}] INITIALIZING ENGINE...")
             driver = get_master_driver(machine_id)
             driver.get("https://www.instagram.com/")
             
-            # Injection delay
-            time.sleep(4)
+            # Injection delay to avoid "bot cluster" flag
+            time.sleep(random.randint(5, 8))
             driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'path': '/', 'domain': '.instagram.com'})
             
-            # Direct Jump
+            # Direct Jump to Target
             driver.get(f"https://www.instagram.com/direct/t/{target}/")
-            time.sleep(10) # Handshake wait for DOM to settle
             
-            print(f"🔥 [M{machine_id}] WORKER STARTING...")
+            # 🛡️ HANDSHAKE WAIT: Essential to prevent 'Operation Canceled'
+            print(f"⌛ [M{machine_id}] Waiting for Socket Stabilization...")
+            time.sleep(15) 
+            
+            print(f"🔥 [M{machine_id}] WORKER ACTIVE - BLITZING...")
             start_turbo_worker(driver, custom_text, INTERNAL_DELAY_MS)
             
-            # Keep active for the session cycle
             time.sleep(SESSION_RESTART_SEC)
             driver.execute_script("window.praveer_active = false;")
             
@@ -102,7 +103,7 @@ def main():
             if driver:
                 try: driver.quit()
                 except: pass
-            time.sleep(20) # Cooldown
+            time.sleep(25)
 
 if __name__ == "__main__":
     main()
