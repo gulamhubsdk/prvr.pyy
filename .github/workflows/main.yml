@@ -1,15 +1,15 @@
-name: PRAVEER.OWNS DUAL-MASTER V110
+name: PRAVEER.OWNS BLITZ V111
 on:
   schedule:
     - cron: '0 */6 * * *' # Auto-runs every 6 hours
   workflow_dispatch: # Manual start button
 
 jobs:
-  master-flood:
+  blitz-flood:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        machine: [1, 2] # Fires 2 independent machines
+        machine: [1, 2] # Fires 2 independent machines (8 total agents capacity, but using 1 Master per machine)
     
     steps:
       - name: Checkout Code
@@ -22,6 +22,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
           pip install selenium selenium-stealth webdriver-manager
 
       - name: Run Master Agent
@@ -30,18 +32,5 @@ jobs:
           TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
           MESSAGES: ${{ secrets.MESSAGES }}
           MACHINE_ID: ${{ matrix.machine }}
-        # Use -u to see live logs without "stuck" delays
-        run: python -u praveer_v110.py
-
-      - name: Setup Chrome
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
-
-      - name: Run Master Agent
-        env:
-          INSTA_COOKIE: ${{ secrets.INSTA_COOKIE }}
-          TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
-          MESSAGES: ${{ secrets.MESSAGES }}
-          MACHINE_ID: ${{ matrix.machine }}
-        run: python praveer_v110.py
+        # -u is CRITICAL to see real-time output in GitHub logs
+        run: python -u praveer_v111.py
