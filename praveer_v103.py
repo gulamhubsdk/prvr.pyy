@@ -1,102 +1,104 @@
 # -*- coding: utf-8 -*-
-# 🚀 PROJECT: PRAVEER.OWNS (V109 VORTEX-SCROLL)
-# 📅 STATUS: BUTTON-FORCE-ACTIVE | AUTO-SCROLL-LOCKED
+# 🚀 PROJECT: PRAVEER.OWNS (V119 VORTEX-CRON)
+# 📅 STATUS: 16-AGENTS-ACTIVE | RELOAD-PROOF | BUTTON-FORCE
 
-import os, time, re, random, datetime, threading, sys, gc, tempfile, subprocess, shutil
+import os, time, random, sys, threading, tempfile
 from concurrent.futures import ThreadPoolExecutor
 from selenium import webdriver
 from selenium_stealth import stealth
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
-# --- ⚡ TRIPLE-TAP CONFIG ---
-THREADS = 4                        
-TOTAL_DURATION = 21600             
-BURST_SPEED = (0.2, 0.4) 
-SESSION_RESTART_SEC = 300          
-
-GLOBAL_SENT = 0
-COUNTER_LOCK = threading.Lock()
+# --- ⚡ VORTEX CONFIG ---
+THREADS_PER_MACHINE = 4            
+INTERNAL_DELAY_MS = 50             # 🔥 20 strikes/sec per agent
+SESSION_RESTART_SEC = 600          # 10-Min Reset to prevent RAM crash (143)
+TOTAL_DURATION = 21000             
 
 def get_driver(agent_id, machine_id):
     chrome_options = Options()
+    chrome_options.page_load_strategy = 'eager'
     chrome_options.add_argument("--headless=new") 
     chrome_options.add_argument("--no-sandbox") 
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--js-flags='--max-old-space-size=512'")
     
-    ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/12{random.randint(1,4)}.0.0.0 Safari/537.36"
-    chrome_options.add_argument(f"user-agent={ua}")
+    # 🛡️ RESOURCE SHIELD: Block CSS/Images to stabilize UI
+    prefs = {"profile.managed_default_content_settings.images": 2, "profile.managed_default_content_settings.stylesheets": 2}
+    chrome_options.add_experimental_option("prefs", prefs)
     
-    temp_dir = os.path.join(tempfile.gettempdir(), f"pv_v109_{machine_id}_{agent_id}")
-    chrome_options.add_argument(f"--user-data-dir={temp_dir}")
-    driver = webdriver.Chrome(options=chrome_options)
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     stealth(driver, languages=["en-US"], vendor="Google Inc.", platform="Win32", fix_hairline=True)
     return driver
 
-def triple_tap_dispatch(driver, text):
+def vortex_dispatch(driver, text, delay):
     """Fires 3 unique messages, scrolls to bottom, and forces Send button."""
-    try:
-        entropy = [f"{random.randint(100,999)}", f"{random.randint(100,999)}", f"{random.randint(100,999)}"]
-        
-        driver.execute_script("""
-            var box = document.querySelector('div[role="textbox"], textarea');
-            var msg = arguments[0];
-            var salts = arguments[1];
+    driver.execute_script("""
+        window.praveer_active = true;
+        window.msg_count = 0;
+        (async function vortex(msg, ms) {
+            const getBox = () => document.querySelector('div[role="textbox"], textarea, [contenteditable="true"]');
+            const filler = "\\u3164\\u2060\\u034F";
+            const wall = (filler + "\\n").repeat(50); 
             
-            if (box) {
-                // 1. Force Scroll to bottom to keep elements 'Visible'
-                box.scrollIntoView({behavior: "instant", block: "end"});
-                
-                salts.forEach(salt => {
+            while(window.praveer_active) {
+                const box = getBox();
+                if (box) {
+                    // Force box back into view if spam pushes it away
+                    box.scrollIntoView({behavior: "instant", block: "end"});
                     box.focus();
-                    // 2. Inject Text
-                    document.execCommand('insertText', false, msg + " \\u200B" + salt);
-                    box.dispatchEvent(new Event('input', { bubbles: true }));
                     
-                    // 3. Locate Send Button via innerText
-                    var sendBtn = null;
-                    var buttons = document.querySelectorAll('div[role="button"]');
-                    for (var b of buttons) {
-                        if (b.innerText === 'Send') { sendBtn = b; break; }
-                    }
+                    // Triple-Strike Burst
+                    for(let i=0; i<3; i++) {
+                        let payload = (window.msg_count % 2 === 0) ? msg : wall;
+                        const salt = Math.random().toString(36).substring(5);
+                        document.execCommand('insertText', false, payload + " \\u200B" + salt);
+                        box.dispatchEvent(new Event('input', { bubbles: true }));
 
-                    if (sendBtn) {
-                        sendBtn.click();
-                    } else {
-                        // 4. Fallback to Enter if button is still not found
-                        var e = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true});
-                        box.dispatchEvent(e);
+                        // Try Button Click -> Fallback to Enter
+                        let sendBtn = [...document.querySelectorAll('div[role="button"], button')].find(b => 
+                            b.innerText.includes('Send') || b.querySelector('svg[aria-label*="Send"]')
+                        );
+
+                        if (sendBtn) {
+                            sendBtn.click();
+                        } else {
+                            const e = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true});
+                            box.dispatchEvent(e);
+                        }
+                        window.msg_count++;
                     }
-                });
+                }
+                await new Promise(r => setTimeout(r, ms));
             }
-        """, text, entropy)
-        return True
-    except: return False
+        })(arguments[0], arguments[1]);
+    """, text, delay)
 
-def run_life_cycle(agent_id, machine_id, cookie, target, custom_text):
-    global_start = time.time()
-    while (time.time() - global_start) < TOTAL_DURATION:
+def run_agent(agent_id, machine_id, cookie, target, text):
+    start_time = time.time()
+    while (time.time() - start_time) < TOTAL_DURATION:
         driver = None
         try:
             driver = get_driver(agent_id, machine_id)
             driver.get("https://www.instagram.com/")
             time.sleep(5)
-            
             driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'path': '/', 'domain': '.instagram.com'})
             driver.get(f"https://www.instagram.com/direct/t/{target}/")
-            time.sleep(15) 
+            time.sleep(15)
             
-            session_start = time.time()
-            while (time.time() - session_start) < SESSION_RESTART_SEC:
-                if triple_tap_dispatch(driver, custom_text):
-                    with COUNTER_LOCK:
-                        global GLOBAL_SENT
-                        GLOBAL_SENT += 3 
-                    sys.stdout.write("🚀")
-                    sys.stdout.flush()
-                
-                time.sleep(random.uniform(*BURST_SPEED))
+            vortex_dispatch(driver, text, INTERNAL_DELAY_MS)
+            
+            # 💓 Heartbeat Loop
+            cycle_start = time.time()
+            while (time.time() - cycle_start) < SESSION_RESTART_SEC:
+                time.sleep(30)
+                try:
+                    cnt = driver.execute_script("return window.msg_count;")
+                    print(f"💓 [M{machine_id}-A{agent_id}] Count: {cnt} | Pulse: OK")
+                except: break
         except: pass
         finally:
             if driver: driver.quit()
@@ -105,12 +107,13 @@ def run_life_cycle(agent_id, machine_id, cookie, target, custom_text):
 def main():
     cookie = os.environ.get("INSTA_COOKIE", "").strip()
     target = os.environ.get("TARGET_THREAD_ID", "").strip()
-    custom_text = os.environ.get("MESSAGES", "V109 TRIPLE").strip()
+    text = os.environ.get("MESSAGES", "SYSTEM OWNED").strip()
     machine_id = os.environ.get("MACHINE_ID", "1")
     
-    with ThreadPoolExecutor(max_workers=THREADS) as executor:
-        for i in range(THREADS):
-            executor.submit(run_life_cycle, i+1, machine_id, cookie, target, custom_text)
+    with ThreadPoolExecutor(max_workers=THREADS_PER_MACHINE) as executor:
+        for i in range(THREADS_PER_MACHINE):
+            executor.submit(run_agent, i+1, machine_id, cookie, target, text)
+            time.sleep(12)
 
 if __name__ == "__main__":
     main()
