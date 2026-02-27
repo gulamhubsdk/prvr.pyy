@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# 🚀 PROJECT: PRAVEER.OWNS (V109 TRIPLE-TAP FIXED)
-# 📅 STATUS: TRIPLE-STRIKE-ACTIVE | FOCUS-LOCK-FIXED
+# 🚀 PROJECT: PRAVEER.OWNS (V109 BUTTON-FORCE)
+# 📅 STATUS: BUTTON-CLICK-ACTIVE | RELOAD-PROOF
 
 import os, time, re, random, datetime, threading, sys, gc, tempfile, subprocess, shutil
 from concurrent.futures import ThreadPoolExecutor
@@ -12,12 +12,11 @@ from selenium.webdriver.chrome.options import Options
 # --- ⚡ TRIPLE-TAP CONFIG ---
 THREADS = 4                        
 TOTAL_DURATION = 21600             
-BURST_SPEED = (0.2, 0.5)           
+BURST_SPEED = (0.2, 0.4) # Slightly faster burst
 SESSION_RESTART_SEC = 300          
 
 GLOBAL_SENT = 0
 COUNTER_LOCK = threading.Lock()
-BROWSER_LAUNCH_LOCK = threading.Lock()
 
 def get_driver(agent_id, machine_id):
     chrome_options = Options()
@@ -25,7 +24,6 @@ def get_driver(agent_id, machine_id):
     chrome_options.add_argument("--no-sandbox") 
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920,1080")
     
     ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/12{random.randint(1,4)}.0.0.0 Safari/537.36"
     chrome_options.add_argument(f"user-agent={ua}")
@@ -34,11 +32,10 @@ def get_driver(agent_id, machine_id):
     chrome_options.add_argument(f"--user-data-dir={temp_dir}")
     driver = webdriver.Chrome(options=chrome_options)
     stealth(driver, languages=["en-US"], vendor="Google Inc.", platform="Win32", fix_hairline=True)
-    driver.custom_temp_path = temp_dir
     return driver
 
 def triple_tap_dispatch(driver, text):
-    """Fires 3 unique messages with forced input events to prevent 'just typing'."""
+    """Fires 3 unique messages by forcing the UI 'Send' button to click."""
     try:
         entropy = [f"{random.randint(100,999)}", f"{random.randint(100,999)}", f"{random.randint(100,999)}"]
         
@@ -52,16 +49,26 @@ def triple_tap_dispatch(driver, text):
                     box.focus();
                     // 1. Inject Text
                     document.execCommand('insertText', false, msg + " \\u200B" + salt);
-                    
-                    // 2. Force 'input' event so Instagram knows text is there
                     box.dispatchEvent(new Event('input', { bubbles: true }));
                     
-                    // 3. Fire Enter
-                    var e = new KeyboardEvent('keydown', {
-                        key: 'Enter', code: 'Enter', keyCode: 13, which: 13, 
-                        bubbles: true, cancelable: true
-                    });
-                    box.dispatchEvent(e);
+                    // 2. Find and Click the Send Button (Direct DOM path)
+                    var sendBtn = document.evaluate("//div[@role='button' and text()='Send']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+                    
+                    // Fallback: search for the Send button by content if the above fails
+                    if (!sendBtn) {
+                        var buttons = document.querySelectorAll('div[role="button"]');
+                        for (var b of buttons) {
+                            if (b.innerText === 'Send') { sendBtn = b; break; }
+                        }
+                    }
+
+                    if (sendBtn) {
+                        sendBtn.click();
+                    } else {
+                        // 3. Fallback to Enter Key if button is hidden
+                        var e = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true});
+                        box.dispatchEvent(e);
+                    }
                 });
             }
         """, text, entropy)
@@ -75,9 +82,7 @@ def run_life_cycle(agent_id, machine_id, cookie, target, custom_text):
         try:
             driver = get_driver(agent_id, machine_id)
             driver.get("https://www.instagram.com/")
-            
-            login_delay = (int(agent_id) * 8) + (int(machine_id) * 15) - 20
-            time.sleep(max(5, login_delay))
+            time.sleep(5)
             
             driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'path': '/', 'domain': '.instagram.com'})
             driver.get(f"https://www.instagram.com/direct/t/{target}/")
