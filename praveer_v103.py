@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# 🚀 PROJECT: PRAVEER.OWNS (V109 TRIPLE-TAP)
-# 📅 STATUS: TRIPLE-STRIKE-ACTIVE | 4-AGENTS PER MACHINE | ENTROPY-SHIELD
+# 🚀 PROJECT: PRAVEER.OWNS (V109 TRIPLE-TAP FIXED)
+# 📅 STATUS: TRIPLE-STRIKE-ACTIVE | FOCUS-LOCK-FIXED
 
 import os, time, re, random, datetime, threading, sys, gc, tempfile, subprocess, shutil
 from concurrent.futures import ThreadPoolExecutor
@@ -12,7 +12,6 @@ from selenium.webdriver.chrome.options import Options
 # --- ⚡ TRIPLE-TAP CONFIG ---
 THREADS = 4                        
 TOTAL_DURATION = 21600             
-# 🔥 STRIKE SPEED: 0.2-0.5s pause between TRIPLE-TAPS (Total 10+ msgs/sec per agent)
 BURST_SPEED = (0.2, 0.5)           
 SESSION_RESTART_SEC = 300          
 
@@ -39,9 +38,8 @@ def get_driver(agent_id, machine_id):
     return driver
 
 def triple_tap_dispatch(driver, text):
-    """Fires 3 unique messages in a single JS execution cycle."""
+    """Fires 3 unique messages with forced input events to prevent 'just typing'."""
     try:
-        # We pass 3 unique 'Entropy' strings to the JS worker
         entropy = [f"{random.randint(100,999)}", f"{random.randint(100,999)}", f"{random.randint(100,999)}"]
         
         driver.execute_script("""
@@ -52,9 +50,13 @@ def triple_tap_dispatch(driver, text):
             if (box) {
                 salts.forEach(salt => {
                     box.focus();
-                    // Inject text + invisible bit for safety
+                    // 1. Inject Text
                     document.execCommand('insertText', false, msg + " \\u200B" + salt);
                     
+                    // 2. Force 'input' event so Instagram knows text is there
+                    box.dispatchEvent(new Event('input', { bubbles: true }));
+                    
+                    // 3. Fire Enter
                     var e = new KeyboardEvent('keydown', {
                         key: 'Enter', code: 'Enter', keyCode: 13, which: 13, 
                         bubbles: true, cancelable: true
@@ -74,20 +76,19 @@ def run_life_cycle(agent_id, machine_id, cookie, target, custom_text):
             driver = get_driver(agent_id, machine_id)
             driver.get("https://www.instagram.com/")
             
-            # 🛡️ SAFETY STAGGER: Wait before injecting cookie
             login_delay = (int(agent_id) * 8) + (int(machine_id) * 15) - 20
             time.sleep(max(5, login_delay))
             
             driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'path': '/', 'domain': '.instagram.com'})
             driver.get(f"https://www.instagram.com/direct/t/{target}/")
-            time.sleep(12) # Full handshake
+            time.sleep(12) 
             
             session_start = time.time()
             while (time.time() - session_start) < SESSION_RESTART_SEC:
                 if triple_tap_dispatch(driver, custom_text):
                     with COUNTER_LOCK:
                         global GLOBAL_SENT
-                        GLOBAL_SENT += 3 # Count 3 per strike
+                        GLOBAL_SENT += 3 
                     sys.stdout.write("🚀")
                     sys.stdout.flush()
                 
