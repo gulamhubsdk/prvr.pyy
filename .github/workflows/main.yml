@@ -1,15 +1,16 @@
-name: PRAVEER.OWNS VORTEX V119 (6HR CRON)
+name: PRAVEER.OWNS INFINITE-VELOCITY V124
 on:
   schedule:
-    - cron: '0 */6 * * *' 
+    - cron: '0 */6 * * *' # Runs every 6 hours
   workflow_dispatch: 
 
 jobs:
   flood:
     runs-on: ubuntu-latest
-    timeout-minutes: 350 
+    timeout-minutes: 350
     strategy:
       matrix:
+        # 4 Machines x 4 Agents = 16 Agents Total
         machine: [1, 2, 3, 4] 
     
     steps:
@@ -27,10 +28,11 @@ jobs:
           sudo apt-get install -y google-chrome-stable
           pip install selenium selenium-stealth webdriver-manager
 
-      - name: Execute Vortex Engine
+      - name: Run Vortex Engine
         env:
           INSTA_COOKIE: ${{ secrets.INSTA_COOKIE }}
           TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
           MESSAGES: ${{ secrets.MESSAGES }}
           MACHINE_ID: ${{ matrix.machine }}
-        run: python -u praveer_v119.py
+        # -u ensures real-time logs so GitHub doesn't throttle the process
+        run: python -u praveer_v124.py
