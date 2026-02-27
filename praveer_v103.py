@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# 🚀 PROJECT: PRAVEER.OWNS (V109 BUTTON-FORCE)
-# 📅 STATUS: BUTTON-CLICK-ACTIVE | RELOAD-PROOF
+# 🚀 PROJECT: PRAVEER.OWNS (V109 TRIPLE-TAP)
+# 📅 STATUS: TRIPLE-STRIKE-ACTIVE | 4-AGENTS PER MACHINE | ENTROPY-SHIELD
 
 import os, time, re, random, datetime, threading, sys, gc, tempfile, subprocess, shutil
 from concurrent.futures import ThreadPoolExecutor
@@ -12,11 +12,13 @@ from selenium.webdriver.chrome.options import Options
 # --- ⚡ TRIPLE-TAP CONFIG ---
 THREADS = 4                        
 TOTAL_DURATION = 21600             
-BURST_SPEED = (0.2, 0.4) # Slightly faster burst
+# 🔥 STRIKE SPEED: 0.2-0.5s pause between TRIPLE-TAPS (Total 10+ msgs/sec per agent)
+BURST_SPEED = (0.2, 0.5)           
 SESSION_RESTART_SEC = 300          
 
 GLOBAL_SENT = 0
 COUNTER_LOCK = threading.Lock()
+BROWSER_LAUNCH_LOCK = threading.Lock()
 
 def get_driver(agent_id, machine_id):
     chrome_options = Options()
@@ -24,6 +26,7 @@ def get_driver(agent_id, machine_id):
     chrome_options.add_argument("--no-sandbox") 
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
     
     ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/12{random.randint(1,4)}.0.0.0 Safari/537.36"
     chrome_options.add_argument(f"user-agent={ua}")
@@ -32,11 +35,13 @@ def get_driver(agent_id, machine_id):
     chrome_options.add_argument(f"--user-data-dir={temp_dir}")
     driver = webdriver.Chrome(options=chrome_options)
     stealth(driver, languages=["en-US"], vendor="Google Inc.", platform="Win32", fix_hairline=True)
+    driver.custom_temp_path = temp_dir
     return driver
 
 def triple_tap_dispatch(driver, text):
-    """Fires 3 unique messages by forcing the UI 'Send' button to click."""
+    """Fires 3 unique messages in a single JS execution cycle."""
     try:
+        # We pass 3 unique 'Entropy' strings to the JS worker
         entropy = [f"{random.randint(100,999)}", f"{random.randint(100,999)}", f"{random.randint(100,999)}"]
         
         driver.execute_script("""
@@ -47,28 +52,14 @@ def triple_tap_dispatch(driver, text):
             if (box) {
                 salts.forEach(salt => {
                     box.focus();
-                    // 1. Inject Text
+                    // Inject text + invisible bit for safety
                     document.execCommand('insertText', false, msg + " \\u200B" + salt);
-                    box.dispatchEvent(new Event('input', { bubbles: true }));
                     
-                    // 2. Find and Click the Send Button (Direct DOM path)
-                    var sendBtn = document.evaluate("//div[@role='button' and text()='Send']", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
-                    
-                    // Fallback: search for the Send button by content if the above fails
-                    if (!sendBtn) {
-                        var buttons = document.querySelectorAll('div[role="button"]');
-                        for (var b of buttons) {
-                            if (b.innerText === 'Send') { sendBtn = b; break; }
-                        }
-                    }
-
-                    if (sendBtn) {
-                        sendBtn.click();
-                    } else {
-                        // 3. Fallback to Enter Key if button is hidden
-                        var e = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true});
-                        box.dispatchEvent(e);
-                    }
+                    var e = new KeyboardEvent('keydown', {
+                        key: 'Enter', code: 'Enter', keyCode: 13, which: 13, 
+                        bubbles: true, cancelable: true
+                    });
+                    box.dispatchEvent(e);
                 });
             }
         """, text, entropy)
@@ -82,18 +73,21 @@ def run_life_cycle(agent_id, machine_id, cookie, target, custom_text):
         try:
             driver = get_driver(agent_id, machine_id)
             driver.get("https://www.instagram.com/")
-            time.sleep(5)
+            
+            # 🛡️ SAFETY STAGGER: Wait before injecting cookie
+            login_delay = (int(agent_id) * 8) + (int(machine_id) * 15) - 20
+            time.sleep(max(5, login_delay))
             
             driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'path': '/', 'domain': '.instagram.com'})
             driver.get(f"https://www.instagram.com/direct/t/{target}/")
-            time.sleep(12) 
+            time.sleep(12) # Full handshake
             
             session_start = time.time()
             while (time.time() - session_start) < SESSION_RESTART_SEC:
                 if triple_tap_dispatch(driver, custom_text):
                     with COUNTER_LOCK:
                         global GLOBAL_SENT
-                        GLOBAL_SENT += 3 
+                        GLOBAL_SENT += 3 # Count 3 per strike
                     sys.stdout.write("🚀")
                     sys.stdout.flush()
                 
