@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
-# 🚀 PROJECT: PRAVEER.OWNS (V123 HARD-STRIKE)
-# 📅 STATUS: TOJI-TEXT-LOCKED | KEY-STATE-FORCED | 8-AGENTS
+# 🚀 PROJECT: PRAVEER.OWNS (V124 INFINITE-VELOCITY)
+# 📅 STATUS: DOM-BLOAT-FIXED | 10-MIN-PURGE | V103-STRIKE
 
-import os, time, random, sys, threading, base64
+import os, time, random, sys, threading, base64, shutil
 from concurrent.futures import ThreadPoolExecutor
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-# --- ⚡ CONFIG ---
+# --- ⚡ PERFORMANCE CONFIG ---
 THREADS_PER_MACHINE = 4            
 INTERNAL_DELAY_MS = 50             
-SESSION_RESTART_SEC = 900          
+PURGE_INTERVAL_SEC = 600           # 🔥 Hard reset every 10 mins to kill lag
+TOTAL_DURATION = 21000             
 
 def get_driver():
     chrome_options = Options()
@@ -20,12 +21,15 @@ def get_driver():
     chrome_options.add_argument("--no-sandbox") 
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
+    # 🛡️ Limit RAM usage per agent to prevent slowdowns
+    chrome_options.add_argument("--js-flags='--max-old-space-size=512'")
+    
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
     return driver
 
-def v123_hard_dispatch(driver, encoded_text, delay):
-    """Bypasses UI stalls by forcing a KeyUp state change after injection."""
+def v124_purge_dispatch(driver, encoded_text, delay):
+    """Fires messages with high-priority execution."""
     driver.execute_script("""
         window.praveer_active = true;
         window.msg_count = 0;
@@ -38,30 +42,18 @@ def v123_hard_dispatch(driver, encoded_text, delay):
                 if (box) {
                     box.focus();
                     const salt = Math.random().toString(36).substring(7);
-                    
-                    // 1. ATOMIC INJECTION
                     document.execCommand('insertText', false, msg + " " + salt);
                     
-                    // 2. FORCE VALIDATION (The Fix for 'Just Typing')
-                    // Firing 'input' + 'keyup' forces the UI to enable the Send button
                     box.dispatchEvent(new Event('input', { bubbles: true }));
                     box.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
 
-                    const clickSend = () => {
-                        let btn = [...document.querySelectorAll('div[role="button"], button')].find(b => 
-                            b.innerText === 'Send' || b.textContent === 'Send'
-                        );
-                        if (btn && !btn.disabled) {
-                            btn.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
-                            btn.click();
-                            return true;
-                        }
-                        return false;
-                    };
+                    let btn = [...document.querySelectorAll('div[role="button"], button')].find(b => 
+                        b.innerText === 'Send' || b.textContent === 'Send'
+                    );
 
-                    // 3. ATOMIC SEND
-                    if (!clickSend()) {
-                        // Hard Fallback to Trusted Enter
+                    if (btn && !btn.disabled) {
+                        btn.click();
+                    } else {
                         box.dispatchEvent(new KeyboardEvent('keydown', {
                             key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
                         }));
@@ -74,30 +66,34 @@ def v123_hard_dispatch(driver, encoded_text, delay):
     """, encoded_text, delay)
 
 def run_agent(agent_id, machine_id, cookie, target, encoded_text):
-    while True:
+    start_time = time.time()
+    while (time.time() - start_time) < TOTAL_DURATION:
         driver = None
         try:
             driver = get_driver()
             driver.get("https://www.instagram.com/")
-            time.sleep(5)
+            time.sleep(4)
             driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'path': '/', 'domain': '.instagram.com'})
             driver.get(f"https://www.instagram.com/direct/t/{target}/")
-            time.sleep(15)
+            time.sleep(12)
             
-            v123_hard_dispatch(driver, encoded_text, INTERNAL_DELAY_MS)
+            v124_purge_dispatch(driver, encoded_text, INTERNAL_DELAY_MS)
 
+            # ⏳ Monitor for 10 minutes, then PURGE
             cycle_start = time.time()
-            while (time.time() - cycle_start) < SESSION_RESTART_SEC:
+            while (time.time() - cycle_start) < PURGE_INTERVAL_SEC:
                 time.sleep(30)
                 try:
                     cnt = driver.execute_script("return window.msg_count;")
-                    print(f"💓 [M{machine_id}-A{agent_id}] Total: {cnt} | V123-STRIKE")
+                    print(f"💓 [M{machine_id}-A{agent_id}] Speed: Stable | Sent: {cnt}")
                     sys.stdout.flush()
                 except: break
         except: pass
         finally:
-            if driver: driver.quit()
-            time.sleep(5)
+            if driver:
+                driver.quit()
+            print(f"🧹 [M{machine_id}-A{agent_id}] PURGING DOM & RAM. RESTARTING...")
+            time.sleep(5) # Cooldown before fresh start
 
 def main():
     cookie = os.environ.get("INSTA_COOKIE", "").strip()
@@ -110,7 +106,7 @@ def main():
     with ThreadPoolExecutor(max_workers=THREADS_PER_MACHINE) as executor:
         for i in range(THREADS_PER_MACHINE):
             executor.submit(run_agent, i+1, machine_id, cookie, target, encoded_text)
-            time.sleep(10)
+            time.sleep(8)
 
 if __name__ == "__main__":
     main()
